@@ -1,1 +1,45 @@
-
+ Positioned(
+              left: 30.0,
+              child: AnimatedContainer(
+                duration: Duration(seconds: 1),
+                curve: Curves.fastOutSlowIn,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.only(
+                    bottomRight: Radius.circular(50),
+                    topRight: Radius.circular(50),
+                  ),
+                  color: Colors.grey[700],
+                ),
+                width: _dialogeWindowWidth,
+                height: _helpHeight,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 30, right: 5),
+                  child: Center(
+                    child: Text(
+                      _downloadDirectory,
+                      style: TextStyle(fontSize: 10),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            FloatingActionButton(
+              onPressed: () async {
+                if (_downloadDirectory == '') {
+                  _downloadDirectory = await youtubeHandler.getSaveLocation();
+                }
+                setState(() {
+                  if (_dialogeWindowWidth == 0)
+                    _dialogeWindowWidth = _width - 75;
+                  else
+                    _dialogeWindowWidth = 0;
+                });
+              },
+              child: Text(
+                "?",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
