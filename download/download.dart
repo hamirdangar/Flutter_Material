@@ -1,103 +1,277 @@
 import 'dart:io';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
-
+import '../constant.dart';
 
 class SaveImageResponse {
   bool isSuccess;
   String message;
-  SaveImageResponse(this.isSuccess, this.message);
+  SaveImageResponse(this.isSuccess,this.message);
 }
 
+ValueNotifier<bool> isDownloading = ValueNotifier(false);
+bool  isDownload = false;
+
 class ImageSaver {
-  Future<SaveImageResponse> saveImage(imageUrl) async {
-
-    var directory;
-    String? folderPath;
-
-    if(Platform.isAndroid){
-      directory = await getExternalStorageDirectory();
-      folderPath = '${directory.path}/ArDraw';
-    }else{
-      directory = await getApplicationDocumentsDirectory();
-      folderPath = '${directory.path}/ArDraw';
-    }
-
-    await Directory(folderPath).create(recursive: true);
-
-    final response = await imageUrl;
-
-    final fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    final filePath = '$folderPath/$fileName';
-
-    final result = await File(filePath).writeAsBytes(response);
-
-    await ImageGallerySaver.saveFile(filePath);
-
-    if (result != null) {
-      return SaveImageResponse(true, 'Image saved successfully');
-    } else {
+  static Future<SaveImageResponse> saveNetworkVideo(String imageUrl,BuildContext context,String folderName) async {
+    try {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return const CupertinoAlertDialog(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CupertinoActivityIndicator(),
+                Text('Downloading...'),
+              ],
+            ),
+          );
+        },
+      );
+      isDownloading.value = true;
+      final directory = await getApplicationDocumentsDirectory();
+      final folderPath = '${directory.path}/$folderName';
+      await Directory(folderPath).create(recursive: true);
+      final response = await HttpClient().getUrl(Uri.parse(imageUrl));
+      final httpClientResponse = await response.close();
+      final Uint8List bytes = await consolidateHttpClientResponseBytes(httpClientResponse);
+      final fileName = 'ai_video_animate_anime_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final filePath = '$folderPath/$fileName';
+      await File(filePath).writeAsBytes(bytes);
+      final result = await ImageGallerySaverPlus.saveFile(filePath);
+      if (result['isSuccess']) {
+        isDownloading.value = false;
+        isDownload = true;
+        Navigator.pop(context);
+        showToast();
+        return SaveImageResponse(true, 'Image saved successfully');
+      } else {
+        Navigator.pop(context);
+        isDownloading.value = false;
+        showToastError();
+        return SaveImageResponse(false, 'Error saving the image');
+      }
+    } catch (e) {
+      print('Error: $e');
+      isDownloading.value = false;
+      Navigator.pop(context);
+      showToastError();
       return SaveImageResponse(false, 'Error saving the image');
     }
   }
+
+  static Future<SaveImageResponse> saveUint8ListNetworkImage(Uint8List imageData,BuildContext context) async {
+    try {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return const CupertinoAlertDialog(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CupertinoActivityIndicator(),
+                Text('Downloading...'),
+              ],
+            ),
+          );
+        },
+      );
+      isDownloading.value = true;
+      final directory = await getApplicationDocumentsDirectory();
+      final folderPath = '${directory.path}/creation';
+
+      await Directory(folderPath).create(recursive: true);
+
+      final fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = '$folderPath/$fileName';
+
+      await File(filePath).writeAsBytes(imageData);
+
+      final result = await ImageGallerySaverPlus.saveFile(filePath);
+
+      if (result['isSuccess']) {
+        isDownloading.value = false;
+        showToast();
+        isDownload = true;
+        Navigator.pop(context);
+        return SaveImageResponse(true, 'Image saved successfully');
+      } else {
+        isDownloading.value = false;
+        showToastError();
+        Navigator.pop(context);
+        return SaveImageResponse(false, 'Error saving the image');
+      }
+    } catch (e) {
+      isDownloading.value = false;
+      print('Error: $e');
+      showToastError();
+      Navigator.pop(context);
+      return SaveImageResponse(false, 'Error saving the image');
+    }
+  }
+
+  static Future<SaveImageResponse> saveNetworkGif(String imageUrl,BuildContext context,String folderName) async {
+    try {
+      isDownloading.value = true;
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return const CupertinoAlertDialog(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CupertinoActivityIndicator(),
+                Text('Downloading...'),
+              ],
+            ),
+          );
+        },
+      );
+      final directory = await getApplicationDocumentsDirectory();
+      final folderPath = '${directory.path}/$folderName';
+      await Directory(folderPath).create(recursive: true);
+      final response = await HttpClient().getUrl(Uri.parse(imageUrl));
+      final httpClientResponse = await response.close();
+      final Uint8List bytes = await consolidateHttpClientResponseBytes(httpClientResponse);
+
+      final fileName = 'faceswap_${DateTime.now().millisecondsSinceEpoch}.gif';
+
+      final filePath = '$folderPath/$fileName';
+
+      await File(filePath).writeAsBytes(bytes);
+
+      final result = await ImageGallerySaverPlus.saveFile(filePath, isReturnPathOfIOS: true);
+
+      if (result['isSuccess']) {
+        isDownloading.value = false;
+        isDownload = true;
+        Navigator.pop(context);
+        showToast();
+        return SaveImageResponse(true, 'video saved successfully');
+      } else {
+        showToastError();
+        isDownloading.value = false;
+        Navigator.pop(context);
+        return SaveImageResponse(false, 'video saving the image');
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      isDownloading.value = false;
+      showToastError();
+      print('Error: $e');
+      return SaveImageResponse(false, 'Error saving the video');
+    }
+  }
+
+  static Future<SaveImageResponse> saveNetworkImage(String imageUrl,BuildContext context) async {
+    try {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return const CupertinoAlertDialog(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CupertinoActivityIndicator(),
+                Text('Downloading...'),
+              ],
+            ),
+          );
+        },
+      );
+      isDownloading.value = true;
+      final directory = await getApplicationDocumentsDirectory();
+      final folderPath = '${directory.path}/creation';
+      await Directory(folderPath).create(recursive: true);
+      final response = await HttpClient().getUrl(Uri.parse(imageUrl));
+      final httpClientResponse = await response.close();
+      final Uint8List bytes = await consolidateHttpClientResponseBytes(httpClientResponse);
+
+      final fileName = 'faceswap_${DateTime.now().millisecondsSinceEpoch}.png';
+
+      final filePath = '$folderPath/$fileName';
+
+      await File(filePath).writeAsBytes(bytes);
+
+      final result = await ImageGallerySaverPlus.saveFile(filePath);
+
+      if (result['isSuccess']) {
+        isDownloading.value = false;
+        showToast();
+        isDownload = true;
+        Navigator.maybePop(context);
+        return SaveImageResponse(true, 'Image saved successfully');
+      } else {
+        isDownloading.value = false;
+        showToastError();
+        Navigator.maybePop(context);
+        return SaveImageResponse(false, 'Error saving the image');
+      }
+    } catch (e) {
+      print('Error: $e');
+      isDownloading.value = false;
+      showToastError();
+      Navigator.maybePop(context);
+      return SaveImageResponse(false, 'Error saving the image');
+    }
+  }
+
+  static Future<bool?> showToastError() => Fluttertoast.showToast(msg: 'Error saving the Image please try aging', backgroundColor: backgroundColor, textColor: textColor);
+
+  static Future<bool?> showToast() => Fluttertoast.showToast(msg: 'Image saved successfully', backgroundColor: backgroundColor, textColor: textColor);
 }
 
-/*import 'package:flutter/services.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 
-Future<void> saveScreenshot(Uint8List screenshotBytes, String folderName) async {
-  try {
-    imageNumber++;
 
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.setInt("imageNumber", imageNumber);
-    log("imageNumber :- $imageNumber");
-    final directory = await getExternalStorageDirectory();
 
-    final rootPath = directory!.path;
 
-    /// Create the full folder path
-    final folderPath = path.join(rootPath, folderName);
 
-    /// Create the folder if it doesn't exist
-    final folder = Directory(folderPath);
-    if (!folder.existsSync()) {
-      folder.createSync(recursive: true);
-    }
 
-    /// Create a file name
-    final fileName = 'SaveImage$imageNumber.png';
-    final filePath = path.join(folderPath, fileName);
 
-    /// Compress and save the image
-    final compressedBytes = await FlutterImageCompress.compressWithList(
-      screenshotBytes,
-      minHeight: 1920, // Optional: Set the desired height
-      minWidth: 1080, // Optional: Set the desired width
-      quality: 90, // Optional: Set the desired quality (0-100)
-    );
 
-    /// Write the compressed image bytes to the file
-    final file = File(filePath);
-    await file.writeAsBytes(compressedBytes);
 
-    log('Screenshot saved at: $filePath');
 
-    // Save the image to the gallery
-    final result = await ImageGallerySaver.saveFile(filePath);
-    log('Image saved to gallery: $result');
 
-    // Notify the media scanner about the new image
-    await MethodChannel('plugins.flutter.io/image_gallery_saver')
-        .invokeMethod('saveImage', {'file_path': filePath});
 
-    moveFolder(
-      "/storage/emulated/0/Android/data/com.example.geo_location_app/files/geoStamp/",
-      "/storage/emulated/0/Download/geoStamp/",
-    );
-  } catch (e) {
-    log('Error saving screenshot: $e');
-  }
-}*/
 
+// Future<SaveImageResponse> saveImage(String imageUrl) async {
+//     final response = await Dio().get(
+//       imageUrl,
+//       options: Options(responseType: ResponseType.bytes),
+//     );
+//     final bytes = Uint8List.fromList(response.data);
+//     var directory;
+//     if (Platform.isIOS) {
+//       directory = await getDownloadsDirectory();
+//     }
+//     directory = "/storage/emulated/0/Download/";
+//     final newFolder = await Directory('$directory/Ai Art Avatar').create(recursive: true);
+//
+//     final insideFolder = await Directory('${newFolder.path}/Text To Images').create(recursive: true);
+//
+//     final fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+//
+//     final filePath = '${insideFolder.path}/$fileName';
+//
+//     await File(filePath).writeAsBytes(bytes);
+//
+//     // final result = await ImageGallerySaver.saveFile(filePath);
+//     //
+//     // if (result['isSuccess']) {
+//     //   return SaveImageResponse(true, 'Image saved successfully');
+//     // } else {
+//     //   // Error saving the image
+//     //   return SaveImageResponse(false, 'Error saving the image');
+//     // }
+//   }
+// final result = await ImageGallerySaver.saveFile(filePath);
+//
+// if (result['isSuccess']) {
+//   return SaveImageResponse(true, 'Image saved successfully');
+// } else {
+//   return SaveImageResponse(false, 'Error saving the image');
+// }
